@@ -1,20 +1,17 @@
 # Working agreements
 
-This repository is a practice project for independent agents working in separate
-Git worktrees. Read `README.md`, `docs/api.md`, and your brief in `docs/tasks/`
-before making changes.
+This is an audio web app and a practice project for parallel agent development.
+Read `README.md` and the task brief supplied for your current assignment.
+These guidelines describe how to work; feature specs and technology choices belong
+in the task brief, not in this file.
 
 ## Scope and ownership
 
-- First milestone: a local, single-user audio library with upload, list, playback,
-  and delete. Use SQLite metadata and local files behind the storage boundary.
-- Authentication, cloud providers, deployment, and audio processing are later work.
-- Backend agent owns `back-end/`; frontend agent owns `front-end/`; QA owns `e2e/`
-  and its fixtures. Each implementation agent owns tests for its own code.
-- Root tooling, `.github/`, and `docs/api.md` have a coordinator owner. Flag needed
-  changes to that owner rather than editing shared files in parallel.
-- Treat `docs/api.md` as the agreed contract. Propose a contract change before
-  implementing an incompatible behavior; do not silently invent a second contract.
+- Follow the goal, ownership boundaries, and acceptance criteria in your assignment.
+- Agree on interfaces with dependent tasks before implementing incompatible changes.
+- Flag changes needed outside your assigned paths to the coordinator. Shared files
+  such as dependency manifests, settings, and application wiring need a named owner
+  for each round of work.
 - Avoid unrelated cleanup and preserve other people's changes.
 
 ## Workflow
@@ -24,7 +21,7 @@ before making changes.
 - Install dependencies inside your worktree. Keep local data, credentials, and
   generated outputs ignored. Never use production services for tests.
 - Run the checks relevant to your changes. Backend: `make check-backend`.
-  Frontend: `make check-frontend`. QA adds its commands under `e2e/README.md`.
+  Frontend: `make check-frontend`. Document any additional checks you introduce.
 - Tests must cover observable behavior and meaningful failure paths. Tests must
   use temporary storage and must not depend on an existing personal audio library.
 - Before handoff, inspect `git diff --check` and your diff. Commit only scoped files.
@@ -35,9 +32,8 @@ before making changes.
 
 ## Design
 
-- Keep HTTP routes thin; storage and metadata access belong behind explicit
-  boundaries that tests can replace. Add modules as behavior requires them.
-- Keep original audio bytes intact so later processing can create separate outputs.
-- Validate uploads on the backend. Never use a client filename as a storage path.
-- Frontend requests go through `front-end/src/lib/api.ts`. Use the documented API
-  origin; do not hardcode backend URLs throughout components.
+- Prefer small, testable modules and explicit boundaries between components.
+- Follow existing conventions; introduce structure when the assigned work needs it.
+- Keep service-specific details behind interfaces that tests can replace.
+- Report assumptions and dependencies in your handoff, including what was mocked
+  and what was verified against another component or real service.

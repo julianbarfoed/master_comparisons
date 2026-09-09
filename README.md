@@ -6,11 +6,8 @@ exercise in parallel development using separate agent worktrees and reviewed PRs
 ## Current state
 
 The foundation includes a static UI, `GET /health`, test harnesses, and CI.
-Upload, persistence, playback, and deletion are specified but **not implemented**.
-
-The first milestone uses SQLite and local file storage for one local user.
-Authentication, Supabase/R2, deployment, and audio processing are out of scope for
-this milestone. Preserve originals so future processors can create derived audio.
+Audio features and service integrations are not implemented. Feature scope,
+providers, data models, and API details are decided when assigning work to agents.
 
 ## Local setup
 
@@ -23,10 +20,10 @@ make setup
 ```
 
 This creates `back-end/.venv`, installs backend development dependencies, and runs
-`npm ci` in `front-end`. Copy each `.env.example` to `.env` if you need overrides;
-defaults require no secrets. Environment examples describe the target milestone;
-the backend agent will implement settings and the frontend agent will connect the
-API client. Vite loads frontend `.env` variables.
+`npm ci` in `front-end`. The current scaffold runs without secrets or external
+services. Environment examples contain suggested local origins; settings and API
+client modules are placeholders. Integration tasks should document any additional
+configuration they introduce. Vite loads frontend `.env` variables.
 
 In two terminals:
 
@@ -47,17 +44,14 @@ make check-backend
 make check-frontend
 ```
 
-Audio data will live under `back-end/.data/` by default and stay out of Git. Tests
-must use temporary directories. Never commit `.env`, uploaded audio, or credentials.
+`.data/` is available as an ignored directory for local development data if needed.
+Tests must use isolated data. Never commit `.env`, uploaded audio, or credentials.
 
 ## Agent development
 
-Read [working agreements](AGENTS.md), the [API contract](docs/api.md), and the
-[worktree workflow](docs/workflow.md). Task briefs:
+Read the [working agreements](AGENTS.md) and [worktree workflow](docs/workflow.md).
+Use the [task brief template](docs/tasks/TEMPLATE.md) when launching an agent.
 
-- [Backend](docs/tasks/backend.md)
-- [Frontend](docs/tasks/frontend.md)
-- [Integration/QA](docs/tasks/qa.md)
-
-Merge the foundation before creating agent branches. Backend and frontend can then
-work in parallel against the contract; QA prepares tests and validates integration.
+The workflow includes an example split across auth, database, R2 storage, API, and
+frontend. It is a starting point for assigning work, not a fixed architecture or
+feature specification. Merge the foundation before creating agent branches.

@@ -1,11 +1,12 @@
-The scaffold had no shared API contract, agent instructions, or automated checks.
-This foundation gives backend, frontend, and QA agents a common starting point for
-a local audio library: upload, persistent listing, playback/seek, and deletion.
+The scaffold had no shared development workflow or automated checks. This
+foundation gives agents a working baseline and general collaboration guidelines.
+Concrete feature specs, service choices, and interfaces are supplied when launching
+tasks using a reusable brief template.
 
 ## Changes
 
-- Document the SQLite/local-file milestone, API responses/errors, acceptance flow,
-  file ownership, per-agent tasks, and tmux/worktree/PR review process.
+- Add general working agreements, a task brief template, and a tmux/worktree/PR
+  review process with an example auth/database/R2/API/frontend split.
 - Add Make setup/run/check targets, pytest and Vitest/Testing Library harnesses,
   independent backend/frontend CI jobs, and a PR template.
 - Add a service-independent `/health` endpoint and one smoke test per app.
@@ -13,8 +14,8 @@ a local audio library: upload, persistent listing, playback/seek, and deletion.
   configuration artifacts and remove the three previously tracked generated files.
 - Upgrade frontend tooling to Vite 7.3.6, React plugin 5.2.0, and Vitest 4.1.11
   after dependency audit findings. Frontend requires Node 22.12+.
-- Simplify environment examples and ignore credentials, local audio data, caches,
-  and agent worktrees.
+- Keep environment examples provider-neutral and ignore credentials, local audio
+  data, caches, and agent worktrees.
 
 ## Validation
 
@@ -30,6 +31,7 @@ a local audio library: upload, persistent listing, playback/seek, and deletion.
 
 ## Handoff
 
-Audio features and end-to-end tests remain assigned to the implementation agents.
-Merge this foundation before creating their worktrees. No agents have been started,
-no credentials are included, and no cloud integrations or deployment are configured.
+Define the next round's feature scope and interfaces in launch briefs, then assign
+agents. Merge this foundation before creating their worktrees. No agents have been
+started, no credentials are included, and no database, authentication provider, or
+cloud integration has been configured.

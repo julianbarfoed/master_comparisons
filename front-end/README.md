@@ -2,8 +2,7 @@
 
 React/Vite project skeleton for the audio interface.
 
-See the root [README](../README.md), [API contract](../docs/api.md), and
-[frontend task](../docs/tasks/frontend.md).
+See the root [README](../README.md) and [agent workflow](../docs/workflow.md).
 
 ## Layout
 
@@ -25,6 +24,6 @@ Run `npm test` for Vitest/Testing Library tests, `npm run typecheck` for TypeScr
 and `npm run build` for typechecking plus a production build. `npm run test:watch`
 starts interactive tests. `make check-frontend` at the root runs tests and the build.
 
-The first milestone uses the Python API without authentication. The Supabase module
-is an unused placeholder for later work. `VITE_API_URL` defaults to
-`http://localhost:8000` in the contract; the frontend agent implements the client.
+The Supabase module is an unused scaffold placeholder, not a provider decision.
+The API client and authentication flow are defined when assigning frontend work.
+`VITE_API_URL` in `.env.example` suggests the local backend origin.

@@ -1,94 +1,90 @@
 # Agent worktrees and review
 
-## Starting point
+Keep permanent repo instructions general. Define feature requirements, technology
+choices, and acceptance criteria when launching work, using the
+[task brief template](tasks/TEMPLATE.md). Briefs can live in launch prompts or in
+task documents when several agents need to reference the same decisions.
 
-Merge the foundation PR into `main` first. Keep the main checkout for coordination.
-Use three tmux panes (backend, frontend, QA) and one optional pane for servers/logs.
-Each pane must start its agent in a separate worktree, not merely a separate shell
-in the same directory.
+## Before launching agents
 
-From the main repository, after the foundation is merged:
+1. Choose the outcome for this round and decide which parts can run independently.
+2. Give each agent owned paths, its tests, and a clear completion condition.
+3. Agree on the interfaces that cross ownership boundaries: inputs, outputs,
+   errors, and who implements each side. A small shared note is usually enough;
+   add typed interfaces or schemas when useful.
+4. Assign one owner to shared dependency/config files and final integration. Supply
+   the same decisions to every affected agent; separate sessions need handoffs.
 
-```sh
-git switch main
-git pull --ff-only
-mkdir -p .worktrees
-git worktree add .worktrees/backend -b feat/audio-backend main
-git worktree add .worktrees/frontend -b feat/audio-frontend main
-git worktree add .worktrees/qa -b test/audio-e2e main
-```
+These are launch decisions, not a requirement to specify the entire app in advance.
+Agents can investigate options first if a provider or approach has not been chosen.
 
-`.worktrees/` is ignored. These checkouts are inside the workspace so local agents
-can access them under the same workspace permissions. Do not run multiple agents
-inside any one checkout. Branch names and paths above are for a fresh setup; use
-`git worktree list` before rerunning commands.
+## Example: five agents
 
-In each pane, `cd` into the appropriate worktree and run `codex`. Give the agent:
+This is a possible split for practicing parallel development. Refine the paths and
+deliverables in the actual assignments; it does not select a database, auth provider,
+HTTP API, upload flow, or schema.
 
-> Read AGENTS.md, docs/api.md, and docs/tasks/<your-role>.md. Implement that task in
-> this worktree only. Run its checks, commit your changes, push this task branch,
-> and open a PR for my review. Do not merge. Report contract changes before making
-> them and report any blockers with the affected paths.
+| Agent | Area of ownership | Interface to agree before implementation |
+| --- | --- | --- |
+| Auth | Backend identity/token validation and its tests | How consumers obtain a verified identity and distinguish auth failures |
+| Database | Persistence, migrations, and repository tests | Data needed by consumers and repository operations, including ownership fields if required |
+| R2 | Object-storage adapter and its tests | Object identifiers, transfer/access operations, and failure behavior |
+| API | HTTP routes, application wiring, and API tests | Browser-facing requests/responses and how auth, database, and storage are called |
+| Frontend | UI, browser auth integration, API client, and UI tests | API payloads and the browser/server auth flow |
 
-Run `make setup-backend` or `make setup-frontend` in each relevant worktree. QA
-uses `make setup` plus its own browser test setup. Ignored `.env` files and installed
-dependencies are not copied by ordinary Git worktree creation. Use the examples;
-this milestone needs no credentials. Use temporary test data instead of copying a
-personal library.
+The existing `back-end/app/auth.py`, `db.py`, and `storage.py` are starting points
+for the first three areas; `main.py` and `front-end/` anchor the other two. Agents
+may introduce modules as their tasks grow. Frontend owns login UI; the auth agent
+coordinates the identity flow rather than editing the same frontend files.
 
-## Coordinating
+For this split, the coordinator can own `back-end/pyproject.toml`, shared settings,
+root tooling, and CI. Agree dependency additions at launch or hand them back to the
+coordinator. The API agent owns application wiring. This avoids several agents
+independently rewriting the same startup/configuration files.
 
-Backend and frontend start together. Frontend uses API mocks while backend is
-under development. QA builds tests against the contract without editing app code.
-The coordinator owns shared docs and CI changes requested by agents.
+Once boundaries are agreed, all five can implement concurrently. API tests can use
+fake auth/repository/storage providers; frontend tests can mock API responses.
+Mocks let implementation proceed, but completion still requires testing the real
+components together. The API/coordinator integration pass is a dependency even
+when the coding was parallel.
 
-If several app instances run at once, use different port pairs and matching origins.
-For example, from a backend worktree's `back-end/`:
+## Worktree setup
 
-```sh
-WEB_ORIGIN=http://localhost:5174 .venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8001
-```
-
-And from its frontend directory:
-
-```sh
-VITE_API_URL=http://localhost:8001 npm run dev -- --host 127.0.0.1 --port 5174
-```
-
-The backend agent implements origin configuration as part of the API task. Storage
-must remain local to each worktree or a test's temporary directory. Ordinary browser
-and API servers for a single integration run may simply use ports 5173 and 8000.
-
-## Review and integration
-
-1. Each agent checks its own changes and opens one focused PR. Use the PR template.
-2. Open that agent's worktree in VS Code, e.g. `code -n .worktrees/backend`, to
-   inspect/run its branch. Do not check out the same branch in the main checkout.
-3. Before merging app PRs, the coordinator creates a disposable integration branch
-   in a fourth worktree and merges the candidate branches there. QA's tests run
-   against that combined checkout. Candidate merge commits stay off task branches.
-4. Send failures to the relevant owner. Update the candidates and rerun affected
-   checks. QA reports the exact candidate commits it tested.
-5. The user merges reviewed PRs one at a time. Update remaining task branches from
-   `origin/main`, then rerun their relevant checks. Run the complete flow on the
-   final merged state before declaring the milestone finished.
-6. Once work is merged and a worktree is clean, stop its servers and use
-   `git worktree remove <exact-path>`. Remove obsolete branches afterward. Never
-   delete a worktree that contains uncommitted work.
-
-QA may prepare its tests before app implementations exist. It must clearly report
-which checks are blocked on implementation rather than marking them as passing.
-Adding browser checks to shared CI is a coordinator handoff after they run reliably.
-
-## Publishing the foundation
-
-The setup branch is `chore/agent-foundation`. After its local checks pass:
+Merge the foundation first. Keep the main checkout for coordination. Create one
+branch and worktree per assignment, for example from an up-to-date `main`:
 
 ```sh
-gh auth login
-git push -u origin chore/agent-foundation
-gh pr create --base main --head chore/agent-foundation --title "Prepare audio app for parallel agent development" --body-file docs/foundation-pr.md
+git worktree add .worktrees/auth -b feat/auth main
+git worktree add .worktrees/db -b feat/db main
+git worktree add .worktrees/r2 -b feat/r2 main
+git worktree add .worktrees/api -b feat/api main
+git worktree add .worktrees/frontend -b feat/frontend main
 ```
 
-Only authenticate if needed (`gh auth status`). The user reviews and merges the
-foundation before the three feature worktrees are created.
+These are examples for a fresh round; check `git worktree list` before reusing paths
+or names. `.worktrees/` is ignored and stays inside the workspace. In each tmux pane,
+enter the corresponding worktree, start an agent, and supply its completed brief.
+Never run independent agents in the same checkout.
+
+Run `make setup-backend`, `make setup-frontend`, or `make setup` as relevant inside
+each worktree. Dependencies and ignored environment files are not copied by ordinary
+Git worktree creation. Configure only the development services required by the
+assignment. Separate ports and test data when multiple instances run concurrently;
+worktrees isolate files, not processes, ports, databases, or cloud resources.
+
+## Handoff and review
+
+1. Each agent runs relevant checks and hands off its changes, interface notes, and
+   any remaining dependencies. Commit, push, and open one focused PR when authorized.
+2. Open the worktree directly in VS Code, e.g. `code -n .worktrees/auth`. Do not try
+   to check out its branch simultaneously in the main checkout.
+3. The coordinator assembles candidate branches in a separate integration worktree
+   and runs the agreed flow using real components. Keep those temporary merge
+   commits off the individual task branches. Return fixes to the owning agents.
+4. The user reviews and merges PRs. Update remaining branches from `main` as needed
+   and check the final combined state. Report which commits were integration-tested.
+5. Stop servers and remove clean, completed worktrees with `git worktree remove
+   <exact-path>` after their work is merged. Preserve any uncommitted work.
+
+No separate QA agent is required for this split: each agent owns its tests, and the
+coordinator owns the integration check. Add a reviewer/QA assignment if useful.

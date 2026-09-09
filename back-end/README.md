@@ -1,7 +1,7 @@
 # Audio backend
 
-FastAPI foundation for the audio service. See the root [README](../README.md),
-[API contract](../docs/api.md), and [backend task](../docs/tasks/backend.md).
+FastAPI foundation for the audio service. See the root [README](../README.md) and
+[agent workflow](../docs/workflow.md).
 
 ## Layout
 
@@ -21,8 +21,8 @@ uvicorn app.main:app --reload --port 8000
 ```
 
 `GET /health` returns `{"status":"ok"}` without external services. Audio endpoints,
-configuration loading, persistence, and storage are not implemented yet. The first
-milestone uses SQLite and local files; authentication is later work.
+configuration loading, authentication, persistence, and storage are not implemented
+yet. Their requirements and providers are defined in agent task briefs.
 
 Run `make check-backend` from the repository root for lint and tests, or run
 `python -m ruff check .` and `python -m pytest` inside the activated environment here.

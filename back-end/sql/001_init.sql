@@ -1,0 +1,2 @@
+-- Initial database migration placeholder.
+-- Define the audio metadata schema and indexes here when persistence is scoped.

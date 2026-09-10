@@ -6,7 +6,10 @@ contract is defined.
 
 from fastapi import FastAPI
 
+from app.routes.tracks import router as tracks_router
+
 app = FastAPI(title="Audio API", version="0.1.0")
+app.include_router(tracks_router)
 
 
 @app.get("/health")

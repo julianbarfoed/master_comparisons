@@ -7,4 +7,7 @@ test('renders the library shell without configured external services', () => {
 
   expect(screen.getByRole('main')).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: 'Audio library' })).toBeInTheDocument()
+  expect(screen.getByRole('status')).toHaveTextContent(
+    'Your library is empty. Audio you add will appear here.',
+  )
 })

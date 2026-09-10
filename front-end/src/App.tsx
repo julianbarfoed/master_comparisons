@@ -1,4 +1,5 @@
 import './styles.css'
+import AudioLibrary from './components/AudioLibrary'
 
 export default function App() {
   return (
@@ -10,11 +11,7 @@ export default function App() {
         </div>
       </header>
 
-      <section className="panel">
-        <span className="eyebrow">LIBRARY</span>
-        <h2>Audio library</h2>
-        <p>Upload, playback, authentication, and library data will be connected here.</p>
-      </section>
+      <AudioLibrary />
     </main>
   )
 }

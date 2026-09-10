@@ -1,6 +1,7 @@
 # Audio backend
 
-FastAPI project skeleton for the audio service.
+FastAPI foundation for the audio service. See the root [README](../README.md) and
+[agent workflow](../docs/workflow.md).
 
 ## Layout
 
@@ -19,4 +20,9 @@ pip install -e '.[dev]'
 uvicorn app.main:app --reload --port 8000
 ```
 
-No API, authentication, persistence, or storage behavior has been implemented.
+`GET /health` returns `{"status":"ok"}` without external services. Audio endpoints,
+configuration loading, authentication, persistence, and storage are not implemented
+yet. Their requirements and providers are defined in agent task briefs.
+
+Run `make check-backend` from the repository root for lint and tests, or run
+`python -m ruff check .` and `python -m pytest` inside the activated environment here.

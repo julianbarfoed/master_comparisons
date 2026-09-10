@@ -14,6 +14,15 @@ in the task brief, not in this file.
   for each round of work.
 - Avoid unrelated cleanup and preserve other people's changes.
 
+## Small PRs
+
+- Give each PR one clear purpose and keep it independently reviewable and working.
+- Split large assignments into successive PRs; an agent does not need to deliver
+  its entire area in one PR. Include relevant tests and docs with each change.
+- Add dependencies, abstractions, and tooling only when the current change needs them.
+- Start with a small end-to-end step. Run agents in parallel when their next tasks
+  have clear, independent scopes; the five-agent split is optional, not a launch quota.
+
 ## Workflow
 
 - Use one task branch and one worktree per agent. Do not switch or edit another

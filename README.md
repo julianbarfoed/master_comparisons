@@ -6,8 +6,10 @@ exercise in parallel development using separate agent worktrees and reviewed PRs
 ## Current state
 
 The foundation includes a static UI, `GET /health`, test harnesses, and CI.
-Audio features and service integrations are not implemented. Feature scope,
-providers, data models, and API details are decided when assigning work to agents.
+The first round added auth/storage/repository boundaries, a track-listing route
+tested with fakes, and a library empty state. Real provider integrations and the
+complete user journey are still to be implemented. See the
+[product roadmap](docs/ROADMAP.md) for the current assessment and proposed milestones.
 
 ## Local setup
 

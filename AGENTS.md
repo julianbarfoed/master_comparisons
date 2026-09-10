@@ -2,8 +2,10 @@
 
 This is an audio web app and a practice project for parallel agent development.
 Read `README.md` and the task brief supplied for your current assignment.
+Use `docs/ROADMAP.md` for shared product direction; distinguish proposed decisions
+from approved ones before starting dependent implementation.
 These guidelines describe how to work; feature specs and technology choices belong
-in the task brief, not in this file.
+in the roadmap and task briefs, not in this file.
 
 ## Scope and ownership
 
@@ -14,9 +16,11 @@ in the task brief, not in this file.
   for each round of work.
 - Avoid unrelated cleanup and preserve other people's changes.
 
-## Small PRs
+## Purposeful PRs
 
 - Give each PR one clear purpose and keep it independently reviewable and working.
+- Name the roadmap milestone and the capability or concrete consumer it enables.
+  Keep changes focused; there is no line-count target or PR quota per agent.
 - Split large assignments into successive PRs; an agent does not need to deliver
   its entire area in one PR. Include relevant tests and docs with each change.
 - Add dependencies, abstractions, and tooling only when the current change needs them.

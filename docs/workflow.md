@@ -1,7 +1,8 @@
 # Agent worktrees and review
 
-Keep permanent repo instructions general. Define feature requirements, technology
-choices, and acceptance criteria when launching work, using the
+Use the [product roadmap](ROADMAP.md) for shared direction and dependencies. A task
+brief selects a meaningful part of the current milestone; it does not independently
+invent provider choices or competing interfaces. Refine acceptance criteria using the
 [task brief template](tasks/TEMPLATE.md). Briefs can live in launch prompts or in
 task documents when several agents need to reference the same decisions.
 
@@ -20,9 +21,10 @@ Agents can investigate options first if a provider or approach has not been chos
 
 ## Example: five agents
 
-This is a possible split for practicing parallel development. Refine the paths and
-deliverables in the actual assignments; it does not select a database, auth provider,
-HTTP API, upload flow, or schema.
+This is a map of available specialties, not a requirement to launch five PRs per
+round. The roadmap determines which agents have useful parallel work. Refine paths
+and deliverables in the actual assignments; this role map does not select a
+database, auth provider, HTTP API, upload flow, or schema.
 
 | Agent | Area of ownership | Interface to agree before implementation |
 | --- | --- | --- |

@@ -5,6 +5,7 @@ prompt or saved as a task document; an unfilled template is not an assignment.
 
 ## Goal and scope
 
+- Roadmap milestone and capability/consumer this PR enables:
 - Desired behavior:
 - Constraints and technology choices, if decided:
 - Out of scope:

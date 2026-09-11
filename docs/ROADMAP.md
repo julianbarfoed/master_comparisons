@@ -1,8 +1,8 @@
 # Audio app: product and implementation plan
 
-Status: draft for review, based on merged `main` at `4abe585` (PRs #1–#7).
-The provider choices and release scope below are proposals, not previously approved
-decisions. Resolve the decision table before launching dependent implementation.
+Status: accepted by the project owner on 2026-09-11, with the upload limit changed
+to 100 MiB in PR #8. Baseline: merged `main` at `4abe585` (PRs #1–#7).
+The provider choices and release scope below are agreed implementation direction.
 This document supplies the shared direction; task briefs select one part of it.
 
 ## 1. Product goal and release boundary
@@ -20,9 +20,9 @@ loading/empty/error states, ownership enforcement, and tests of the complete flo
 Excluded: sharing, teams, editing, waveforms, batch uploads, subscriptions, multiple
 auth providers, and background processing infrastructure.
 
-## 2. Decisions to settle once
+## 2. Agreed decisions
 
-| Decision | Proposed choice | Reason / consequence |
+| Decision | Agreed choice | Reason / consequence |
 | --- | --- | --- |
 | First release | Private library before processing | Gives future audio operations a real input/output workflow |
 | Auth | Supabase Auth; email OTP for development | One browser session flow; Python validates its access token |
@@ -30,7 +30,7 @@ auth providers, and background processing infrastructure.
 | Audio storage | Private Cloudflare R2 bucket | Matches the intended storage integration; original bytes stay outside Postgres |
 | Upload path | Browser → Python → R2 | One authenticated request can enforce size/content rules without an upload-finalization protocol |
 | Playback path | API grants a short-lived signed R2 GET URL | Browser media player reads/seeks directly; API still authorizes each grant |
-| Initial formats/limit | PCM WAV and MP3, at most 25 MiB per file | Explicit, bounded scope; adjust here before upload implementation |
+| Initial formats/limit | PCM WAV and MP3, at most 100 MiB (104,857,600 bytes) per file | Limit applies to file bytes; request limits must also allow multipart overhead |
 | Hosting | Decide after the local library works | No host-specific infrastructure in the first implementation round |
 
 Email OTP needs development email delivery configured (or a local mail capture
@@ -100,11 +100,11 @@ RLS. Two-user isolation tests are required regardless of adapter choice.
 [RLS behavior](https://supabase.com/docs/guides/database/postgres/row-level-security).
 
 Presigned R2 URLs are temporary bearer capabilities: someone with the URL can use
-it until expiry. Propose five-minute playback grants, no public bucket, and no URL
+it until expiry. Use five-minute playback grants, no public bucket, and no URL
 logging. Configure bucket CORS for the frontend's allowed origins and media access.
 If an expired URL breaks playback/seek, request a fresh grant and restore position
 once; show a recoverable error if that fails. Signing out does not instantly revoke
-an already-issued URL; confirm that five-minute window is acceptable before M2.
+an already-issued URL; that five-minute access window is part of the agreed design.
 [Signed URLs](https://developers.cloudflare.com/r2/api/s3/presigned-urls/),
 [Bucket CORS](https://developers.cloudflare.com/r2/buckets/cors/).
 
@@ -175,8 +175,9 @@ creation endpoint or a production fake repository.
 
 Add validated upload, R2 persistence, track creation, authorized playback grants,
 and the browser upload/player flow. Upload one file at a time. The backend enforces
-the limit while reading, including requests without a trustworthy Content-Length;
-use temporary/spooled storage and bounded reads. Choose a media parser as part of
+the 100 MiB file limit while reading, including requests without a trustworthy
+Content-Length. Use temporary/spooled storage and bounded reads; do not materialize
+an entire 100 MiB upload in memory. Choose a media parser as part of
 this feature, derive duration/type, and reject malformed or unsupported input.
 
 Reuse `ObjectStorage` where it fits. Its `bytes` interface may need a file/stream
@@ -194,7 +195,9 @@ version; document this and avoid automatic client POST retries.
 Acceptance: valid WAV and MP3 uploads appear immediately and play/seek after refresh
 and restart. A second user cannot obtain playback grants. Test oversized, malformed,
 and unsupported files; R2 failure; metadata failure and cleanup; expired playback
-URLs. Verify seeking against real R2 in supported browsers, not just mocked URLs.
+URLs. Verify that a valid file at 104,857,600 bytes is accepted and one byte more is
+rejected, including streamed requests; multipart overhead does not count as file
+bytes. Verify seeking against real R2 in supported browsers, not just mocked URLs.
 
 ### M3 — I can remove an audio file reliably
 
@@ -228,7 +231,7 @@ when its next consumer is named and it works with real dependencies. A milestone
 is complete only after the combined user journey is demonstrated. There is no line
 count target; split when it improves reasoning or isolates a meaningful dependency.
 
-| Proposed PR | Concrete result | Lead / collaborators | Dependency |
+| Planned PR | Concrete result | Lead / collaborators | Dependency |
 | --- | --- | --- | --- |
 | M1-A: authenticated identity | Valid provider token succeeds at `/me`; invalid tokens fail | Auth lead; API review | Provider/sign-in decision and dev project |
 | M1-B: persistent private listing | Existing `/tracks` reads owner-scoped Postgres rows; reconciles the two metadata contracts | DB lead; API integration support | Can develop beside A; final integration requires A |
@@ -272,6 +275,6 @@ contribution is coordinated within that feature; choose a single branch owner.
   consumed interfaces, and required checks. After a merge, branch the next task from
   updated `main`; do not reuse the old round-one branches as a new baseline.
 
-Next action after this plan is reviewed: resolve section 2, establish development
-service access, and launch M1-A/B/C with the interfaces in section 5. Review M1's
+Next action after this PR is merged: establish development service access and
+launch M1-A/B/C with the interfaces in section 5. Review M1's
 working journey before committing to the next wave's exact implementation details.

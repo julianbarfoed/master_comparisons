@@ -25,5 +25,9 @@ Read `README.md`, `docs/ROADMAP.md`, and the current assignment before changing 
 - Use isolated test data and development services; keep credentials out of Git.
 - Run relevant checks from README and `git diff --check`. Distinguish mocked
   verification from real integration evidence.
-- When publishing is authorized, commit scoped changes, push, and open a PR.
-  Leave merging to the user; start the next task from updated main.
+- Every implementation assignment includes delivery: run checks, commit scoped
+  changes, push the task branch, and open a PR for the user to review. Return the
+  PR link with validation results and any limitations; local commits alone are not
+  completion. If publishing is blocked, report the blocker in chat.
+- Review-only assignments do not require a PR. Follow any explicit instruction
+  to keep work local. Leave merging to the user; start the next task from updated main.

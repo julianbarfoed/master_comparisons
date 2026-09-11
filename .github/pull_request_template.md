@@ -1,13 +1,11 @@
-## Behavior
+## Change
 
-What problem does this solve, and what can the user do afterward?
+<!-- Describe the resulting behavior and its roadmap milestone or concrete consumer. -->
 
 ## Validation
 
-- Commands run and their results:
-- Manual/browser checks (screenshots for UI changes):
+<!-- State checks run, results, and any integration limits. -->
 
-## Coordination
+## Dependencies
 
-- Contract changes or dependencies on other PRs:
-- Known limitations or follow-up work:
+<!-- List concrete prerequisites or follow-up work, if any. Resolve open questions in chat. -->

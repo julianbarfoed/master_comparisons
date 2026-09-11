@@ -1,6 +1,6 @@
-/** Authentication-provider boundary.
- *
- * Configure the selected client here when authentication is implemented.
- */
+import { createClient } from '@supabase/supabase-js'
 
-export {}
+const url = import.meta.env.VITE_SUPABASE_URL
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
+
+export const supabase = url && anonKey ? createClient(url, anonKey) : null

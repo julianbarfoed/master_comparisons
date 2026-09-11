@@ -8,4 +8,4 @@ class TrackSummary(BaseModel):
 
     id: str
     title: str
-    duration_seconds: float = Field(ge=0)
+    duration_seconds: float = Field(gt=0)

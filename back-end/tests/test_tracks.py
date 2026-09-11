@@ -1,4 +1,5 @@
 from collections.abc import Iterator
+from datetime import UTC, datetime
 
 import pytest
 from fastapi.testclient import TestClient
@@ -34,7 +35,15 @@ def use_track_reader(reader: StubTrackReader) -> None:
 
 def test_lists_tracks_for_authenticated_user():
     reader = StubTrackReader(
-        [Track(id="track-1", title="First recording", duration_seconds=12.5)]
+        [
+            Track(
+                id="track-1",
+                owner_id="user-1",
+                title="First recording",
+                duration_seconds=12.5,
+                created_at=datetime(2026, 9, 11, tzinfo=UTC),
+            )
+        ]
     )
     authenticate_as("user-1")
     use_track_reader(reader)

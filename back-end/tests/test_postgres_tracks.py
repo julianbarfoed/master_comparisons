@@ -1,0 +1,228 @@
+"""Integration tests for the Postgres-backed track library."""
+
+from __future__ import annotations
+
+import os
+from collections.abc import Iterator
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from pathlib import Path
+from urllib.parse import urlsplit, urlunsplit
+from uuid import UUID, uuid4
+
+import psycopg
+import pytest
+
+from app.db import PostgresTrackRepository
+from app.tracks import Track, TrackRepositoryUnavailable
+
+MIGRATION_PATH = Path(__file__).parents[1] / "sql" / "001_init.sql"
+
+
+@dataclass(frozen=True)
+class IsolatedPostgres:
+    database_url: str
+
+    def execute(self, statement: str, parameters: tuple[object, ...] = ()) -> None:
+        with psycopg.connect(self.database_url) as connection:
+            connection.execute(statement, parameters)
+
+
+def _database_url_with_name(database_url: str, database_name: str) -> str:
+    parsed = urlsplit(database_url)
+    return urlunsplit(parsed._replace(path=f"/{database_name}"))
+
+
+@pytest.fixture
+def isolated_postgres() -> Iterator[IsolatedPostgres]:
+    database_url = os.getenv("TEST_DATABASE_URL")
+    if not database_url:
+        pytest.skip("TEST_DATABASE_URL is required for Postgres integration tests")
+
+    test_database_name = f"audio_tracks_test_{uuid4().hex}"
+    scoped_database_url = _database_url_with_name(database_url, test_database_name)
+    migration = MIGRATION_PATH.read_text()
+
+    try:
+        with psycopg.connect(database_url, autocommit=True) as connection:
+            connection.execute(f'CREATE DATABASE "{test_database_name}"')
+    except psycopg.Error as error:
+        pytest.fail(
+            "TEST_DATABASE_URL must allow creation of a temporary test database: "
+            f"{error.__class__.__name__}"
+        )
+
+    try:
+        with psycopg.connect(scoped_database_url) as connection:
+            connection.execute(migration)
+        yield IsolatedPostgres(scoped_database_url)
+    finally:
+        with psycopg.connect(database_url, autocommit=True) as connection:
+            connection.execute(f'DROP DATABASE IF EXISTS "{test_database_name}" WITH (FORCE)')
+
+
+def insert_track(
+    postgres: IsolatedPostgres,
+    *,
+    track_id: str,
+    owner_id: str,
+    title: str,
+    duration_seconds: float,
+    created_at: str,
+) -> None:
+    postgres.execute(
+        """
+        INSERT INTO private.tracks (id, owner_id, title, duration_seconds, created_at)
+        VALUES (%s, %s, %s, %s, %s)
+        """,
+        (track_id, owner_id, title, duration_seconds, created_at),
+    )
+
+
+def test_migration_generates_uuid_and_utc_creation_time(
+    isolated_postgres: IsolatedPostgres,
+):
+    with psycopg.connect(isolated_postgres.database_url) as connection:
+        generated_id, created_at = connection.execute(
+            """
+            INSERT INTO private.tracks (owner_id, title, duration_seconds)
+            VALUES (%s, %s, %s)
+            RETURNING id::text, created_at
+            """,
+            ("owner-1", "Generated metadata", 1.25),
+        ).fetchone()
+
+    assert str(UUID(generated_id)) == generated_id
+    assert created_at.tzinfo is not None
+
+
+@pytest.mark.parametrize("duration_seconds", [0, -1, float("inf"), float("nan")])
+def test_migration_rejects_non_positive_or_non_finite_duration(
+    isolated_postgres: IsolatedPostgres,
+    duration_seconds: float,
+):
+    with (
+        psycopg.connect(isolated_postgres.database_url) as connection,
+        pytest.raises(psycopg.errors.CheckViolation),
+    ):
+        connection.execute(
+            """
+            INSERT INTO private.tracks (owner_id, title, duration_seconds)
+            VALUES (%s, %s, %s)
+            """,
+            ("owner-1", "Invalid duration", duration_seconds),
+        )
+
+
+def test_backend_role_is_read_only(isolated_postgres: IsolatedPostgres):
+    with (
+        psycopg.connect(isolated_postgres.database_url) as connection,
+        pytest.raises(psycopg.errors.InsufficientPrivilege),
+    ):
+        connection.execute("SET LOCAL ROLE audio_backend")
+        connection.execute(
+            """
+            INSERT INTO private.tracks (owner_id, title, duration_seconds)
+            VALUES (%s, %s, %s)
+            """,
+            ("owner-1", "Forbidden write", 1),
+        )
+
+
+def test_empty_owner_library_returns_no_tracks(isolated_postgres: IsolatedPostgres):
+    repository = PostgresTrackRepository(isolated_postgres.database_url)
+
+    assert repository.list_tracks("owner-with-no-tracks") == []
+
+
+def test_tracks_persist_across_repository_instances_and_are_owner_scoped(
+    isolated_postgres: IsolatedPostgres,
+):
+    owner_track_id = "00000000-0000-0000-0000-000000000101"
+    other_track_id = "00000000-0000-0000-0000-000000000201"
+    insert_track(
+        isolated_postgres,
+        track_id=owner_track_id,
+        owner_id="owner-1",
+        title="Owner recording",
+        duration_seconds=12.5,
+        created_at="2026-09-11T08:00:00+00:00",
+    )
+    insert_track(
+        isolated_postgres,
+        track_id=other_track_id,
+        owner_id="owner-2",
+        title="Private recording",
+        duration_seconds=37.25,
+        created_at="2026-09-11T09:00:00+00:00",
+    )
+
+    first_repository = PostgresTrackRepository(isolated_postgres.database_url)
+    second_repository = PostgresTrackRepository(isolated_postgres.database_url)
+
+    first_owner_tracks = first_repository.list_tracks("owner-1")
+    assert first_owner_tracks == [
+        Track(
+            id=owner_track_id,
+            owner_id="owner-1",
+            title="Owner recording",
+            duration_seconds=12.5,
+            created_at=datetime(2026, 9, 11, 8, tzinfo=UTC),
+        )
+    ]
+    assert second_repository.list_tracks("owner-1") == first_owner_tracks
+    assert second_repository.list_tracks("owner-2") == [
+        Track(
+            id=other_track_id,
+            owner_id="owner-2",
+            title="Private recording",
+            duration_seconds=37.25,
+            created_at=datetime(2026, 9, 11, 9, tzinfo=UTC),
+        )
+    ]
+
+
+def test_lists_newest_first_with_id_as_tie_breaker(
+    isolated_postgres: IsolatedPostgres,
+):
+    oldest_id = "00000000-0000-0000-0000-000000000001"
+    lower_tie_id = "00000000-0000-0000-0000-000000000002"
+    higher_tie_id = "00000000-0000-0000-0000-000000000003"
+    insert_track(
+        isolated_postgres,
+        track_id=higher_tie_id,
+        owner_id="owner-1",
+        title="Higher ID",
+        duration_seconds=3,
+        created_at="2026-09-11T09:00:00+00:00",
+    )
+    insert_track(
+        isolated_postgres,
+        track_id=oldest_id,
+        owner_id="owner-1",
+        title="Oldest",
+        duration_seconds=1,
+        created_at="2026-09-11T08:00:00+00:00",
+    )
+    insert_track(
+        isolated_postgres,
+        track_id=lower_tie_id,
+        owner_id="owner-1",
+        title="Lower ID",
+        duration_seconds=2,
+        created_at="2026-09-11T09:00:00+00:00",
+    )
+
+    tracks = PostgresTrackRepository(isolated_postgres.database_url).list_tracks("owner-1")
+
+    assert [track.id for track in tracks] == [higher_tie_id, lower_tie_id, oldest_id]
+
+
+def test_database_query_failure_is_reported_as_repository_unavailable(
+    isolated_postgres: IsolatedPostgres,
+):
+    repository = PostgresTrackRepository(isolated_postgres.database_url)
+    isolated_postgres.execute("DROP TABLE private.tracks")
+
+    with pytest.raises(TrackRepositoryUnavailable):
+        repository.list_tracks("owner-1")

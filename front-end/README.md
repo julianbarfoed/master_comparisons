@@ -1,29 +1,10 @@
-# Audio frontend
+# Frontend map
 
-React/Vite project skeleton for the audio interface.
+Run/setup/check commands: [root README](../README.md).
+Shared contracts and milestones: [roadmap](../docs/ROADMAP.md).
 
-See the root [README](../README.md) and [agent workflow](../docs/workflow.md).
-
-## Layout
-
-- `src/App.tsx` — application shell
-- `src/lib/api.ts` — API-client boundary
-- `src/lib/supabase.ts` — authentication-provider boundary
-- `src/styles.css` — base application styles
-
-## Run locally
-
-```sh
-npm ci
-npm run dev
-```
-
-The UI is static: no authentication, API calls, upload handling, playback, or data state has been implemented.
-
-Run `npm test` for Vitest/Testing Library tests, `npm run typecheck` for TypeScript,
-and `npm run build` for typechecking plus a production build. `npm run test:watch`
-starts interactive tests. `make check-frontend` at the root runs tests and the build.
-
-The Supabase module is an unused scaffold placeholder, not a provider decision.
-The API client and authentication flow are defined when assigning frontend work.
-`VITE_API_URL` in `.env.example` suggests the local backend origin.
+- `src/App.tsx`, `src/components/`: application shell and library UI.
+- `src/lib/api.ts`: API-client boundary.
+- `src/lib/supabase.ts`: Supabase client boundary.
+- `src/styles.css`: application styles.
+- `src/**/*.test.tsx`, `src/test/`: UI tests and setup.

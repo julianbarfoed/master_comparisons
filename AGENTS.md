@@ -1,48 +1,29 @@
 # Working agreements
 
-This is an audio web app and a practice project for parallel agent development.
-Read `README.md` and the task brief supplied for your current assignment.
-These guidelines describe how to work; feature specs and technology choices belong
-in the task brief, not in this file.
+Read `README.md`, `docs/ROADMAP.md`, and the current assignment before changing code.
 
-## Scope and ownership
+## Communication and documentation
 
-- Follow the goal, ownership boundaries, and acceptance criteria in your assignment.
-- Agree on interfaces with dependent tasks before implementing incompatible changes.
-- Flag changes needed outside your assigned paths to the coordinator. Shared files
-  such as dependency manifests, settings, and application wiring need a named owner
-  for each round of work.
-- Avoid unrelated cleanup and preserve other people's changes.
+- Ask questions and discuss alternatives in chat. Record settled decisions in docs.
+- README owns operating instructions; ROADMAP owns shared architecture, contracts,
+  milestones, and current priorities; this file owns durable working rules.
+- Keep details beside the code when future maintainers need them. Avoid duplicate
+  guides, archived PR descriptions, and documents without an active consumer.
+- PR descriptions explain the resulting solution, validation, and concrete
+  dependencies. Resolve planning questions in chat before publishing the solution.
 
-## Small PRs
+## Implementation and review
 
-- Give each PR one clear purpose and keep it independently reviewable and working.
-- Split large assignments into successive PRs; an agent does not need to deliver
-  its entire area in one PR. Include relevant tests and docs with each change.
-- Add dependencies, abstractions, and tooling only when the current change needs them.
-- Start with a small end-to-end step. Run agents in parallel when their next tasks
-  have clear, independent scopes; the five-agent split is optional, not a launch quota.
-
-## Workflow
-
-- Use one task branch and one worktree per agent. Do not switch or edit another
-  agent's worktree. The main checkout is reserved for coordination and review.
-- Install dependencies inside your worktree. Keep local data, credentials, and
-  generated outputs ignored. Never use production services for tests.
-- Run the checks relevant to your changes. Backend: `make check-backend`.
-  Frontend: `make check-frontend`. Document any additional checks you introduce.
-- Tests must cover observable behavior and meaningful failure paths. Tests must
-  use temporary storage and must not depend on an existing personal audio library.
-- Before handoff, inspect `git diff --check` and your diff. Commit only scoped files.
-- When authorized to publish, push the task branch and open a PR using the template.
-  Include exact checks and outcomes; distinguish implemented behavior from plans.
-- Leave merging to the user. Do not resolve cross-agent ownership conflicts by
-  overwriting another agent's work; send a concise handoff with the affected paths.
-
-## Design
-
-- Prefer small, testable modules and explicit boundaries between components.
-- Follow existing conventions; introduce structure when the assigned work needs it.
-- Keep service-specific details behind interfaces that tests can replace.
-- Report assumptions and dependencies in your handoff, including what was mocked
-  and what was verified against another component or real service.
+- Give each PR one meaningful capability or a named consumer in the roadmap.
+  Keep it reviewable; there is no line-count target or PR quota.
+- Include relevant tests and docs with the change. Add tooling and abstractions
+  when the current feature needs them.
+- Use a separate task branch/worktree from current main; preserve other agents'
+  changes. Agree owned paths and shared interfaces before parallel implementation.
+- Give shared configuration, dependency files, and app wiring one writer per wave.
+  Coordinate changes outside your scope with that owner.
+- Use isolated test data and development services; keep credentials out of Git.
+- Run relevant checks from README and `git diff --check`. Distinguish mocked
+  verification from real integration evidence.
+- When publishing is authorized, commit scoped changes, push, and open a PR.
+  Leave merging to the user; start the next task from updated main.

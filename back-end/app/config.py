@@ -10,6 +10,30 @@ class AuthConfigurationError(RuntimeError):
     """Raised when authentication settings are missing or invalid."""
 
 
+class DatabaseConfigurationError(RuntimeError):
+    """Raised when the Postgres connection setting is missing or invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class DatabaseSettings:
+    """Connection settings for backend-only Supabase Postgres access."""
+
+    database_url: str
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> "DatabaseSettings":
+        source = os.environ if environ is None else environ
+        database_url = source.get("DATABASE_URL", "").strip()
+        if not database_url:
+            raise DatabaseConfigurationError("DATABASE_URL is required")
+
+        parsed = urlparse(database_url)
+        if parsed.scheme not in {"postgres", "postgresql"} or not parsed.netloc:
+            raise DatabaseConfigurationError("DATABASE_URL must be a PostgreSQL URL")
+
+        return cls(database_url=database_url)
+
+
 @dataclass(frozen=True, slots=True)
 class AuthSettings:
     """Supabase values required to verify access tokens."""

@@ -4,8 +4,9 @@ from datetime import UTC, datetime
 import pytest
 from fastapi.testclient import TestClient
 
+from app.dependencies import get_current_user_id
 from app.main import app
-from app.routes.tracks import get_current_user_id, get_track_reader
+from app.routes.tracks import get_track_reader
 from app.tracks import Track, TrackRepositoryUnavailable
 
 
@@ -85,6 +86,17 @@ def test_maps_repository_unavailability_to_service_unavailable():
 
     authenticate_as("user-1")
     app.dependency_overrides[get_track_reader] = UnavailableTrackReader
+
+    with TestClient(app) as client:
+        response = client.get("/tracks")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Track library unavailable"}
+
+
+def test_maps_missing_database_configuration_to_service_unavailable(monkeypatch):
+    monkeypatch.delenv("DATABASE_URL", raising=False)
+    authenticate_as("user-1")
 
     with TestClient(app) as client:
         response = client.get("/tracks")

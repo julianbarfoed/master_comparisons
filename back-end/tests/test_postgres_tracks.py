@@ -12,8 +12,12 @@ from uuid import UUID, uuid4
 
 import psycopg
 import pytest
+from fastapi.testclient import TestClient
 
+from app.auth import VerifiedIdentity
 from app.db import PostgresTrackRepository
+from app.dependencies import get_identity_verifier
+from app.main import app
 from app.tracks import Track, TrackRepositoryUnavailable
 
 MIGRATION_PATH = Path(__file__).parents[1] / "sql" / "001_init.sql"
@@ -26,6 +30,21 @@ class IsolatedPostgres:
     def execute(self, statement: str, parameters: tuple[object, ...] = ()) -> None:
         with psycopg.connect(self.database_url) as connection:
             connection.execute(statement, parameters)
+
+
+@pytest.fixture(autouse=True)
+def clear_dependency_overrides() -> Iterator[None]:
+    yield
+    app.dependency_overrides.clear()
+    get_identity_verifier.cache_clear()
+
+
+class StaticIdentityVerifier:
+    def __init__(self, subject: str) -> None:
+        self._identity = VerifiedIdentity(subject=subject)
+
+    def verify(self, token: str, /) -> VerifiedIdentity:
+        return self._identity
 
 
 def _database_url_with_name(database_url: str, database_name: str) -> str:
@@ -226,3 +245,63 @@ def test_database_query_failure_is_reported_as_repository_unavailable(
 
     with pytest.raises(TrackRepositoryUnavailable):
         repository.list_tracks("owner-1")
+
+
+def test_tracks_endpoint_reads_the_verified_owners_persistent_library(
+    isolated_postgres: IsolatedPostgres,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    insert_track(
+        isolated_postgres,
+        track_id="00000000-0000-0000-0000-000000000101",
+        owner_id="owner-1",
+        title="Visible recording",
+        duration_seconds=12.5,
+        created_at="2026-09-11T08:00:00+00:00",
+    )
+    insert_track(
+        isolated_postgres,
+        track_id="00000000-0000-0000-0000-000000000201",
+        owner_id="owner-2",
+        title="Other owner's recording",
+        duration_seconds=30,
+        created_at="2026-09-11T09:00:00+00:00",
+    )
+    monkeypatch.setenv("DATABASE_URL", isolated_postgres.database_url)
+    app.dependency_overrides[get_identity_verifier] = lambda: StaticIdentityVerifier("owner-1")
+
+    with TestClient(app) as first_client:
+        first_response = first_client.get(
+            "/tracks", headers={"Authorization": "Bearer valid-token"}
+        )
+    with TestClient(app) as restarted_client:
+        restarted_response = restarted_client.get(
+            "/tracks", headers={"Authorization": "Bearer valid-token"}
+        )
+
+    expected = [
+        {
+            "id": "00000000-0000-0000-0000-000000000101",
+            "title": "Visible recording",
+            "duration_seconds": 12.5,
+        }
+    ]
+    assert first_response.status_code == 200
+    assert first_response.json() == expected
+    assert restarted_response.status_code == 200
+    assert restarted_response.json() == expected
+
+
+def test_tracks_endpoint_maps_a_database_failure_to_service_unavailable(
+    isolated_postgres: IsolatedPostgres,
+    monkeypatch: pytest.MonkeyPatch,
+):
+    isolated_postgres.execute("DROP TABLE private.tracks")
+    monkeypatch.setenv("DATABASE_URL", isolated_postgres.database_url)
+    app.dependency_overrides[get_identity_verifier] = lambda: StaticIdentityVerifier("owner-1")
+
+    with TestClient(app) as client:
+        response = client.get("/tracks", headers={"Authorization": "Bearer valid-token"})
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Track library unavailable"}

@@ -1,6 +1,27 @@
 import pytest
 
-from app.config import AuthConfigurationError, AuthSettings
+from app.config import (
+    AuthConfigurationError,
+    AuthSettings,
+    DatabaseConfigurationError,
+    DatabaseSettings,
+)
+
+
+def test_database_settings_load_a_postgres_url():
+    settings = DatabaseSettings.from_env(
+        {"DATABASE_URL": "postgresql://audio-api:secret@db.example.test:5432/postgres"}
+    )
+
+    assert settings.database_url == (
+        "postgresql://audio-api:secret@db.example.test:5432/postgres"
+    )
+
+
+@pytest.mark.parametrize("database_url", ["", "sqlite:///local.db", "postgresql:///missing-host"])
+def test_database_settings_require_a_postgres_url(database_url: str):
+    with pytest.raises(DatabaseConfigurationError):
+        DatabaseSettings.from_env({"DATABASE_URL": database_url})
 
 
 def test_auth_settings_derive_supabase_jwt_endpoints():

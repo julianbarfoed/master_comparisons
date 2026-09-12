@@ -1,9 +1,23 @@
+"""Tests for Supabase and browser-origin configuration."""
+
 import pytest
 
-from app.config import AuthConfigurationError, AuthSettings
+from app.config import AuthConfigurationError, AuthSettings, get_web_origin
+
+
+def test_web_origin_defaults_to_the_local_frontend():
+    """Use the documented Vite origin when no override is supplied."""
+    assert get_web_origin({}) == "http://localhost:5173"
+
+
+def test_web_origin_rejects_a_path():
+    """Reject values that are URLs rather than browser origins."""
+    with pytest.raises(AuthConfigurationError, match="must not contain a path"):
+        get_web_origin({"WEB_ORIGIN": "http://localhost:5173/app"})
 
 
 def test_auth_settings_derive_supabase_jwt_endpoints():
+    """Derive the canonical Supabase issuer and JWKS endpoint."""
     settings = AuthSettings.from_env({"SUPABASE_URL": "https://project-ref.supabase.co/"})
 
     assert settings.jwt_issuer == "https://project-ref.supabase.co/auth/v1"
@@ -14,11 +28,13 @@ def test_auth_settings_derive_supabase_jwt_endpoints():
 
 
 def test_auth_settings_require_a_supabase_url():
+    """Require the project URL needed to build default auth endpoints."""
     with pytest.raises(AuthConfigurationError, match="SUPABASE_URL is required"):
         AuthSettings.from_env({})
 
 
 def test_auth_settings_accept_explicit_jwt_overrides():
+    """Honor explicit issuer, audience, and JWKS settings for custom deployments."""
     settings = AuthSettings.from_env(
         {
             "SUPABASE_URL": "http://supabase.local",

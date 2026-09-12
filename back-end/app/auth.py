@@ -5,7 +5,7 @@ from typing import Protocol
 
 import jwt
 from jwt import PyJWK, PyJWKClient
-from jwt.exceptions import InvalidTokenError, PyJWKClientError
+from jwt.exceptions import InvalidTokenError, PyJWKClientError, PyJWTError
 
 SUPPORTED_SIGNING_ALGORITHMS = ("RS256", "ES256")
 
@@ -37,7 +37,8 @@ class IdentityVerifier(Protocol):
 
 
 class _SigningKeyProvider(Protocol):
-    def get_signing_keys(self, refresh: bool = False) -> list[PyJWK]: ...
+    def get_signing_key_from_jwt(self, token: str | bytes) -> PyJWK:
+        """Return the cached or remotely discovered key for a JWT."""
 
 
 class SupabaseIdentityVerifier:
@@ -51,6 +52,7 @@ class SupabaseIdentityVerifier:
         jwks_url: str,
         signing_key_provider: _SigningKeyProvider | None = None,
     ) -> None:
+        """Configure issuer/audience checks and a cooldown-aware JWKS client."""
         self._issuer = issuer
         self._audience = audience
         self._signing_key_provider = signing_key_provider or PyJWKClient(
@@ -73,7 +75,7 @@ class SupabaseIdentityVerifier:
         if not isinstance(key_id, str) or algorithm not in SUPPORTED_SIGNING_ALGORITHMS:
             raise AuthenticationFailed
 
-        signing_key = self._resolve_signing_key(key_id, algorithm)
+        signing_key = self._resolve_signing_key(token, key_id, algorithm)
 
         try:
             claims = jwt.decode(
@@ -96,27 +98,21 @@ class SupabaseIdentityVerifier:
         except ValueError as error:
             raise AuthenticationFailed from error
 
-    def _resolve_signing_key(self, key_id: str, algorithm: str) -> PyJWK:
+    def _resolve_signing_key(self, token: str, key_id: str, algorithm: str) -> PyJWK:
+        """Resolve the token key and classify credential versus provider failures."""
         try:
-            signing_keys = self._signing_key_provider.get_signing_keys()
-            signing_key = self._matching_key(signing_keys, key_id, algorithm)
-            if signing_key is None:
-                signing_keys = self._signing_key_provider.get_signing_keys(refresh=True)
-                signing_key = self._matching_key(signing_keys, key_id, algorithm)
+            signing_key = self._signing_key_provider.get_signing_key_from_jwt(token)
         except PyJWKClientError as error:
+            # PyJWT uses one client exception for an unknown ``kid`` and for
+            # malformed/empty JWKS responses. Its own message is the only
+            # distinction available; unknown credentials are 401, while the
+            # provider failures must surface as 503.
+            if str(error).startswith("Unable to find a signing key that matches"):
+                raise AuthenticationFailed from error
+            raise AuthenticationServiceUnavailable from error
+        except (PyJWTError, ValueError) as error:
             raise AuthenticationServiceUnavailable from error
 
-        if signing_key is None:
+        if signing_key.key_id != key_id or signing_key.algorithm_name != algorithm:
             raise AuthenticationFailed
         return signing_key
-
-    @staticmethod
-    def _matching_key(signing_keys: list[PyJWK], key_id: str, algorithm: str) -> PyJWK | None:
-        return next(
-            (
-                key
-                for key in signing_keys
-                if key.key_id == key_id and key.algorithm_name == algorithm
-            ),
-            None,
-        )

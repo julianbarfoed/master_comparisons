@@ -10,6 +10,22 @@ class AuthConfigurationError(RuntimeError):
     """Raised when authentication settings are missing or invalid."""
 
 
+def get_web_origin(environ: Mapping[str, str] | None = None) -> str:
+    """Return the browser origin allowed to call the API.
+
+    ``WEB_ORIGIN`` is intentionally a single explicit origin so credentialed
+    browser requests cannot be opened to arbitrary sites. The local frontend
+    origin is the safe development default.
+    """
+    source = os.environ if environ is None else environ
+    origin = source.get("WEB_ORIGIN", "http://localhost:5173").strip().rstrip("/")
+    _validate_http_url("WEB_ORIGIN", origin)
+    parsed = urlparse(origin)
+    if parsed.path or parsed.query or parsed.fragment:
+        raise AuthConfigurationError("WEB_ORIGIN must not contain a path or query")
+    return origin
+
+
 @dataclass(frozen=True, slots=True)
 class AuthSettings:
     """Supabase values required to verify access tokens."""
@@ -21,6 +37,7 @@ class AuthSettings:
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "AuthSettings":
+        """Load Supabase URL, issuer, audience, and JWKS settings from an environment mapping."""
         source = os.environ if environ is None else environ
         supabase_url = source.get("SUPABASE_URL", "").strip().rstrip("/")
         if not supabase_url:
@@ -50,6 +67,7 @@ class AuthSettings:
 
 
 def _validate_http_url(name: str, value: str) -> None:
+    """Reject missing URL schemes/hosts before they reach an HTTP client."""
     parsed = urlparse(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise AuthConfigurationError(f"{name} must be an HTTP(S) URL")

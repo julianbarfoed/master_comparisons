@@ -9,6 +9,12 @@ Read `README.md`, `docs/ROADMAP.md`, and the current assignment before changing 
   milestones, and current priorities; this file owns durable working rules.
 - Keep details beside the code when future maintainers need them. Avoid duplicate
   guides, archived PR descriptions, and documents without an active consumer.
+- Thoroughly document every code file and function you add or change so the user
+  can understand the implementation while reviewing it. Use a file/module comment
+  to explain its purpose and place in the app, and docstrings or function comments
+  to explain behavior, inputs/outputs, and relevant side effects or failure cases.
+  Explain non-obvious logic and design choices inline; focus on useful explanations
+  rather than restating syntax. Keep comments accurate as the code changes.
 - PR descriptions explain the resulting solution, validation, and concrete
   dependencies. Resolve planning questions in chat before publishing the solution.
 

@@ -28,6 +28,7 @@ class PostgresTrackRepository:
         self._connect_timeout_seconds = connect_timeout_seconds
 
     def list_tracks(self, user_id: str) -> list[Track]:
+        """Return one owner's tracks, translating database errors for the route's 503."""
         try:
             with self._connect(
                 self._database_url,

@@ -33,6 +33,7 @@ class InMemoryTrackReader:
         self._tracks = list(tracks or [])
 
     def list_tracks(self, user_id: str) -> list[Track]:
+        """Filter by owner and apply the same ordering as the SQL adapter."""
         return sorted(
             (track for track in self._tracks if track.owner_id == user_id),
             key=lambda track: (track.created_at, track.id),

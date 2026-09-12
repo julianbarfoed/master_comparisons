@@ -28,32 +28,40 @@ class IsolatedPostgres:
     database_url: str
 
     def execute(self, statement: str, parameters: tuple[object, ...] = ()) -> None:
+        """Execute a setup statement using a short-lived test connection."""
         with psycopg.connect(self.database_url) as connection:
             connection.execute(statement, parameters)
 
 
 @pytest.fixture(autouse=True)
 def clear_dependency_overrides() -> Iterator[None]:
+    """Reset FastAPI overrides and the cached auth dependency after each test."""
     yield
     app.dependency_overrides.clear()
     get_identity_verifier.cache_clear()
 
 
 class StaticIdentityVerifier:
+    """Return a fixed verified subject while exercising bearer dependency plumbing."""
+
     def __init__(self, subject: str) -> None:
+        """Set the subject that every test token resolves to."""
         self._identity = VerifiedIdentity(subject=subject)
 
     def verify(self, token: str, /) -> VerifiedIdentity:
+        """Return the configured identity for any test credential."""
         return self._identity
 
 
 def _database_url_with_name(database_url: str, database_name: str) -> str:
+    """Replace only the database path while preserving connection credentials."""
     parsed = urlsplit(database_url)
     return urlunsplit(parsed._replace(path=f"/{database_name}"))
 
 
 @pytest.fixture
 def isolated_postgres() -> Iterator[IsolatedPostgres]:
+    """Create, migrate, and finally drop a unique database for one test."""
     database_url = os.getenv("TEST_DATABASE_URL")
     if not database_url:
         pytest.skip("TEST_DATABASE_URL is required for Postgres integration tests")
@@ -89,6 +97,7 @@ def insert_track(
     duration_seconds: float,
     created_at: str,
 ) -> None:
+    """Seed one metadata row using the migration connection, not the read-only role."""
     postgres.execute(
         """
         INSERT INTO private.tracks (id, owner_id, title, duration_seconds, created_at)
@@ -101,6 +110,7 @@ def insert_track(
 def test_migration_generates_uuid_and_utc_creation_time(
     isolated_postgres: IsolatedPostgres,
 ):
+    """The M1 migration supplies server-side UUID and timezone-aware creation defaults."""
     with psycopg.connect(isolated_postgres.database_url) as connection:
         generated_id, created_at = connection.execute(
             """
@@ -120,6 +130,7 @@ def test_migration_rejects_non_positive_or_non_finite_duration(
     isolated_postgres: IsolatedPostgres,
     duration_seconds: float,
 ):
+    """The metadata constraint rejects invalid durations before they reach the reader."""
     with (
         psycopg.connect(isolated_postgres.database_url) as connection,
         pytest.raises(psycopg.errors.CheckViolation),
@@ -134,6 +145,7 @@ def test_migration_rejects_non_positive_or_non_finite_duration(
 
 
 def test_backend_role_is_read_only(isolated_postgres: IsolatedPostgres):
+    """The role used by API reads cannot insert metadata."""
     with (
         psycopg.connect(isolated_postgres.database_url) as connection,
         pytest.raises(psycopg.errors.InsufficientPrivilege),
@@ -149,6 +161,7 @@ def test_backend_role_is_read_only(isolated_postgres: IsolatedPostgres):
 
 
 def test_empty_owner_library_returns_no_tracks(isolated_postgres: IsolatedPostgres):
+    """A valid owner with no rows receives an empty repository result."""
     repository = PostgresTrackRepository(isolated_postgres.database_url)
 
     assert repository.list_tracks("owner-with-no-tracks") == []
@@ -157,6 +170,7 @@ def test_empty_owner_library_returns_no_tracks(isolated_postgres: IsolatedPostgr
 def test_tracks_persist_across_repository_instances_and_are_owner_scoped(
     isolated_postgres: IsolatedPostgres,
 ):
+    """Rows survive repository recreation and remain isolated by owner ID."""
     owner_track_id = "00000000-0000-0000-0000-000000000101"
     other_track_id = "00000000-0000-0000-0000-000000000201"
     insert_track(
@@ -204,6 +218,7 @@ def test_tracks_persist_across_repository_instances_and_are_owner_scoped(
 def test_lists_newest_first_with_id_as_tie_breaker(
     isolated_postgres: IsolatedPostgres,
 ):
+    """The SQL ordering matches the roadmap's newest-first tie-break contract."""
     oldest_id = "00000000-0000-0000-0000-000000000001"
     lower_tie_id = "00000000-0000-0000-0000-000000000002"
     higher_tie_id = "00000000-0000-0000-0000-000000000003"
@@ -240,6 +255,7 @@ def test_lists_newest_first_with_id_as_tie_breaker(
 def test_database_query_failure_is_reported_as_repository_unavailable(
     isolated_postgres: IsolatedPostgres,
 ):
+    """A missing table is translated to the route's dependency-failure exception."""
     repository = PostgresTrackRepository(isolated_postgres.database_url)
     isolated_postgres.execute("DROP TABLE private.tracks")
 
@@ -251,6 +267,7 @@ def test_tracks_endpoint_reads_the_verified_owners_persistent_library(
     isolated_postgres: IsolatedPostgres,
     monkeypatch: pytest.MonkeyPatch,
 ):
+    """FastAPI combines bearer identity, Postgres rows, response mapping, and restart persistence."""
     insert_track(
         isolated_postgres,
         track_id="00000000-0000-0000-0000-000000000101",
@@ -296,6 +313,7 @@ def test_tracks_endpoint_maps_a_database_failure_to_service_unavailable(
     isolated_postgres: IsolatedPostgres,
     monkeypatch: pytest.MonkeyPatch,
 ):
+    """A real SQL failure becomes the documented HTTP 503 response."""
     isolated_postgres.execute("DROP TABLE private.tracks")
     monkeypatch.setenv("DATABASE_URL", isolated_postgres.database_url)
     app.dependency_overrides[get_identity_verifier] = lambda: StaticIdentityVerifier("owner-1")

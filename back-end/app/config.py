@@ -10,6 +10,31 @@ class AuthConfigurationError(RuntimeError):
     """Raised when authentication settings are missing or invalid."""
 
 
+class DatabaseConfigurationError(RuntimeError):
+    """Raised when the Postgres connection setting is missing or invalid."""
+
+
+@dataclass(frozen=True, slots=True)
+class DatabaseSettings:
+    """Connection settings for backend-only Supabase Postgres access."""
+
+    database_url: str
+
+    @classmethod
+    def from_env(cls, environ: Mapping[str, str] | None = None) -> "DatabaseSettings":
+        """Load and validate ``DATABASE_URL`` from the supplied environment."""
+        source = os.environ if environ is None else environ
+        database_url = source.get("DATABASE_URL", "").strip()
+        if not database_url:
+            raise DatabaseConfigurationError("DATABASE_URL is required")
+
+        parsed = urlparse(database_url)
+        if parsed.scheme not in {"postgres", "postgresql"} or not parsed.netloc:
+            raise DatabaseConfigurationError("DATABASE_URL must be a PostgreSQL URL")
+
+        return cls(database_url=database_url)
+
+
 @dataclass(frozen=True, slots=True)
 class AuthSettings:
     """Supabase values required to verify access tokens."""
@@ -21,6 +46,7 @@ class AuthSettings:
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "AuthSettings":
+        """Load and validate Supabase issuer, audience, and JWKS settings."""
         source = os.environ if environ is None else environ
         supabase_url = source.get("SUPABASE_URL", "").strip().rstrip("/")
         if not supabase_url:
@@ -50,6 +76,7 @@ class AuthSettings:
 
 
 def _validate_http_url(name: str, value: str) -> None:
+    """Reject authentication URLs that cannot be used for HTTP requests."""
     parsed = urlparse(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
         raise AuthConfigurationError(f"{name} must be an HTTP(S) URL")

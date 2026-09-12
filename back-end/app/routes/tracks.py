@@ -4,26 +4,26 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, status
 
+from app.config import DatabaseConfigurationError, DatabaseSettings
+from app.db import PostgresTrackRepository
+from app.dependencies import get_current_user_id
 from app.schemas import TrackSummary
 from app.tracks import TrackReader, TrackRepositoryUnavailable
 
 router = APIRouter(tags=["tracks"])
 
 
-def get_current_user_id() -> str:
-    """Require an auth adapter to supply a verified, provider-neutral user ID."""
-    raise HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Authentication required",
-    )
-
-
 def get_track_reader() -> TrackReader:
-    """Require a persistence adapter before track metadata can be read."""
-    raise HTTPException(
-        status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-        detail="Track library unavailable",
-    )
+    """Build the real Postgres reader from backend-only configuration."""
+    try:
+        settings = DatabaseSettings.from_env()
+    except DatabaseConfigurationError as error:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Track library unavailable",
+        ) from error
+
+    return PostgresTrackRepository(settings.database_url)
 
 
 @router.get("/tracks", response_model=list[TrackSummary])

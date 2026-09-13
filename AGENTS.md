@@ -9,6 +9,12 @@ Read `README.md`, `docs/ROADMAP.md`, and the current assignment before changing 
   milestones, and current priorities; this file owns durable working rules.
 - Keep details beside the code when future maintainers need them. Avoid duplicate
   guides, archived PR descriptions, and documents without an active consumer.
+- Thoroughly document every code file and function you add or change so the user
+  can understand the implementation while reviewing it. Use a file/module comment
+  to explain its purpose and place in the app, and docstrings or function comments
+  to explain behavior, inputs/outputs, and relevant side effects or failure cases.
+  Explain non-obvious logic and design choices inline; focus on useful explanations
+  rather than restating syntax. Keep comments accurate as the code changes.
 - PR descriptions explain the resulting solution, validation, and concrete
   dependencies. Resolve planning questions in chat before publishing the solution.
 
@@ -25,5 +31,9 @@ Read `README.md`, `docs/ROADMAP.md`, and the current assignment before changing 
 - Use isolated test data and development services; keep credentials out of Git.
 - Run relevant checks from README and `git diff --check`. Distinguish mocked
   verification from real integration evidence.
-- When publishing is authorized, commit scoped changes, push, and open a PR.
-  Leave merging to the user; start the next task from updated main.
+- Every implementation assignment includes delivery: run checks, commit scoped
+  changes, push the task branch, and open a PR for the user to review. Return the
+  PR link with validation results and any limitations; local commits alone are not
+  completion. If publishing is blocked, report the blocker in chat.
+- Review-only assignments do not require a PR. Follow any explicit instruction
+  to keep work local. Leave merging to the user; start the next task from updated main.

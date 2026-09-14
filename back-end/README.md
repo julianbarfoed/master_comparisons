@@ -17,6 +17,8 @@ Set `SUPABASE_URL` to the project URL before calling authenticated endpoints. Th
 backend derives the expected issuer and JWKS URL from it and requires the
 `authenticated` audience. `SUPABASE_JWT_ISSUER`, `SUPABASE_JWKS_URL`, and
 `SUPABASE_JWT_AUDIENCE` can override those defaults for custom deployments.
+Set `WEB_ORIGIN` to the exact browser origin that may call the API; it defaults to
+`http://localhost:5173` and controls the CORS allowlist.
 
 The project must use Supabase asymmetric JWT signing keys (RS256 or ES256),
 whose public keys are exposed through the project's JWKS endpoint. Shared-secret

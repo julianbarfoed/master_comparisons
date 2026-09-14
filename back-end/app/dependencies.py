@@ -20,9 +20,11 @@ _bearer_scheme = HTTPBearer(auto_error=False)
 
 class _UnavailableIdentityVerifier:
     def __init__(self, cause: AuthConfigurationError) -> None:
+        """Retain configuration failure details without exposing them to clients."""
         self._cause = cause
 
     def verify(self, token: str, /) -> VerifiedIdentity:
+        """Convert missing configuration into the same 503 path as a provider outage."""
         raise AuthenticationServiceUnavailable from self._cause
 
 
@@ -63,6 +65,7 @@ def get_current_user_id(
 
 
 def _authentication_required() -> HTTPException:
+    """Build the shared 401 response and advertise the Bearer scheme."""
     return HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",

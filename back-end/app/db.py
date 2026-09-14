@@ -1,50 +1,58 @@
-"""Provider-neutral persistence boundary for audio metadata."""
+"""Supabase Postgres persistence for track metadata."""
 
-from dataclasses import dataclass
-from typing import Protocol
+from collections.abc import Callable
+from typing import Any
 
+import psycopg
 
-@dataclass(frozen=True, slots=True)
-class AudioRecord:
-    """The minimum metadata needed to connect an owner to stored audio."""
+from app.tracks import Track, TrackRepositoryUnavailable
 
-    id: str
-    owner_id: str
-    object_key: str
-    title: str
+Connect = Callable[..., psycopg.Connection[Any]]
 
 
-class DuplicateAudioRecordError(Exception):
-    """Raised when a repository already contains the requested record ID."""
+class PostgresTrackRepository:
+    """Read owner-scoped track metadata through a restricted database role."""
 
-    def __init__(self, record_id: str) -> None:
-        self.record_id = record_id
-        super().__init__(f"audio record already exists: {record_id}")
+    def __init__(
+        self,
+        database_url: str,
+        *,
+        connect: Connect = psycopg.connect,
+        connect_timeout_seconds: int = 5,
+    ) -> None:
+        if not database_url.strip():
+            raise ValueError("database URL must not be blank")
 
+        self._database_url = database_url
+        self._connect = connect
+        self._connect_timeout_seconds = connect_timeout_seconds
 
-class AudioRepository(Protocol):
-    """Persistence operations required by the first audio metadata slice."""
-
-    def create(self, record: AudioRecord) -> None:
-        """Persist a new record or raise ``DuplicateAudioRecordError``."""
-        ...
-
-    def get_by_id(self, record_id: str) -> AudioRecord | None:
-        """Return a record by ID, or ``None`` when it does not exist."""
-        ...
-
-
-class InMemoryAudioRepository:
-    """Small dependency-free repository for tests and local composition."""
-
-    def __init__(self) -> None:
-        self._records: dict[str, AudioRecord] = {}
-
-    def create(self, record: AudioRecord) -> None:
-        if record.id in self._records:
-            raise DuplicateAudioRecordError(record.id)
-
-        self._records[record.id] = record
-
-    def get_by_id(self, record_id: str) -> AudioRecord | None:
-        return self._records.get(record_id)
+    def list_tracks(self, user_id: str) -> list[Track]:
+        """Return one owner's tracks, translating database errors for the route's 503."""
+        try:
+            with self._connect(
+                self._database_url,
+                connect_timeout=self._connect_timeout_seconds,
+            ) as connection, connection.cursor() as cursor:
+                cursor.execute("SET LOCAL ROLE audio_backend")
+                cursor.execute(
+                    """
+                    SELECT id::text, owner_id, title, duration_seconds, created_at
+                    FROM private.tracks
+                    WHERE owner_id = %s
+                    ORDER BY created_at DESC, id DESC
+                    """,
+                    (user_id,),
+                )
+                return [
+                    Track(
+                        id=row[0],
+                        owner_id=row[1],
+                        title=row[2],
+                        duration_seconds=row[3],
+                        created_at=row[4],
+                    )
+                    for row in cursor.fetchall()
+                ]
+        except psycopg.Error as error:
+            raise TrackRepositoryUnavailable("track metadata query failed") from error
